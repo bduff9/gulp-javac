@@ -1,0 +1,51 @@
+{
+  "name": "gulp-javac",
+  "version": "0.0.1",
+  "description": "Java compilation tools for Gulp.",
+  "license": "MIT",
+  "author": "Paul Hounshell",
+  "homepage": "https://github.com/hounshell/gulp-javac#readme",
+
+  "keywords": [
+    "java",
+    "javac",
+    "compile",
+    "gulp",
+    "jar"
+  ],
+
+  "bugs": {
+    "url": "https://github.com/hounshell/gulp-javac/issues"
+  },
+
+  "main": "javac.js",
+
+  "scripts": {
+    "test": "mocha"
+  },
+
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hounshell/gulp-javac.git"
+  },
+
+  "dependencies": {
+    "chalk": "^1.0.0",
+    "gulp-util": "^3.0.0",
+    "object-assign": "^4.0.1",
+    "plur": "^2.0.0",
+    "stringify-object": "^2.3.0",
+    "through2": "^2.0.0",
+    "tildify": "^1.1.2"
+  },
+
+  "devDependencies": {
+    "gulp": "^3.8.10",
+    "gulp-jshint": "^2.0.2",
+    "jshint": "^2.9.4",
+    "mocha": "*",
+    "proxyquire": "^1.0.1",
+    "sinon": "^1.9.1",
+    "strip-ansi": "^3.0.0"
+  }
+}
