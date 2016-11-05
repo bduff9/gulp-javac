@@ -9,8 +9,6 @@
       spawn = require('child_process').spawn,
       javac = require('./javac');
 
-  javac.trace = true;
-
   gulp.task('lint', function() {
     return gulp.src(['**/*.js', '**/*.json', '!node_modules/**'])
       .pipe(jshint())
@@ -30,7 +28,7 @@
   gulp.task('test-combined', function() {
     return gulp.src(['test/**/*.java', '!test/**/-*'])
         .pipe(debug({title: 'before'}))
-        .pipe(javac('test-combined.jar', {verbose: true}))
+        .pipe(javac('test-combined.jar', {entrypoint: "test_package.TestClass"}))
         .pipe(debug({title: 'jar'}))
         .pipe(gulp.dest('out/'));
   });
