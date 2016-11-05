@@ -12,7 +12,6 @@
       path = require('path'),
       gulp = require('gulp'),
       gutil = require('gulp-util'),
-      through = require('through2'),
       tmp = require('tmp'),
       spawn = require('child_process').spawn;
 
