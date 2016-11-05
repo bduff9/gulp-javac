@@ -13,20 +13,8 @@
       gulp = require('gulp'),
       gutil = require('gulp-util'),
       tmp = require('tmp'),
-      spawn = require('child_process').spawn;
-
-
-  let forwardStream = function(source, destination) {
-    source.pipe(new Transform({
-      objectMode: true,
-      transform(file, enc, next) {
-        destination.push(file);
-        next();
-      },
-      flush() {
-        destination.push(null);
-      }}));
-  };
+      spawn = require('child_process').spawn,
+      streamhelp = require('./stream-helpers');
 
 
   let spawnlog = function(tool) {
@@ -183,7 +171,7 @@
             compileStream.emit('javac failed');
             compileStream.push(null);
           } else {
-            forwardStream(
+            streamhelp.forwardStream(
               gulp.src(outputFolder + '/**', {nodir: true}),
               compileStream);
           }
@@ -285,7 +273,7 @@
           jarStream.emit('jar failed');
           jarStream.push(null);
         } else {
-          forwardStream(gulp.src(jarFile), jarStream);
+          streamhelp.forwardStream(gulp.src(jarFile), jarStream);
         }
       });
     });
@@ -295,23 +283,13 @@
     return jarStream;
   };
 
+
   var compile = function(jarName, options) {
     let javacStream = javac(options);
     let jarStream = javacStream.pipe(jar(jarName, options));
 
-    let compileStream = new Duplex({
-        readableObjectMode: true,
-        writableObjectMode: true,
-        read() { /* You can't tell me what to do. */ },
-        write(file, enc, next) {
-          javacStream.write(file);
-          next();
-        }});
-
-    compileStream.on('finish', function() {
-      javacStream.end();
-      forwardStream(jarStream, compileStream);
-    });
+    let compileStream = streamhelp.encapsulateStream(
+      javacStream, javacStream.pipe(jar(jarName, options)));
 
     compileStream.addLibraries = javacStream.addLibraries.bind(javacStream);
 
