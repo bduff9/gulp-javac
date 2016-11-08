@@ -80,9 +80,11 @@
         readableObjectMode: true,
         writableObjectMode: true,
         transform(file, enc, next) {
-          trace('Source file:', file.path, sources);
-          sources.push(file.path);
-          next();
+          if (file.isDirectory()) {
+            trace('Source file:', file.path, sources);
+            sources.push(file.path);
+            next();
+          }
         },
         flush(next) {
           Promise.all(pendingWork)
