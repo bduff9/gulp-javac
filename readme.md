@@ -8,13 +8,15 @@ Compile java source and create jars from gulp.
 
 ## Usage
 
-    javac = require('gulp-javac');
+```js
+javac = require('gulp-javac');
 
-    gulp.task('example', function() {
-      return gulp.src('./src/**/*.java')
-        .pipe(javac('example.jar').addLibrary('./lib/**/*.jar'))
-        .pipe(gulp.dest('out'));
-    });
+gulp.task('example', function() {
+  return gulp.src('./src/**/*.java')
+    .pipe(javac('example.jar').addLibrary('./lib/**/*.jar'))
+    .pipe(gulp.dest('out'));
+});
+```
 
 ## API
 
@@ -25,7 +27,7 @@ java source files; directories are ignored.  Produces a stream of generated
 files.
 
 #### options
-
+  
 ##### debuggingInformation
 
 Type: `string` or `string[]`  
@@ -110,7 +112,7 @@ the resulting jar.
 Base name of the jar file to create.
 
 #### options
-
+  
 ##### omitManifest
 
 Type: `boolean`  
@@ -158,20 +160,27 @@ Flags to pass to the underlying jar runner.  See the `-J` flag in `man jar`.
 
 Convenience function for javac.javac(...) and javac.jar(...). These are equivalent:
 
-    javacOptions = {...};
-    jarOptions = {...};
-    jarName = '...';
-    
-    gulp.src(...)
-       .pipe(javac.javac(javacOptions).addLibraries(...))
-       .pipe(javac.jar(jarName, jarOptions));
+```js
+// Options.
+javacOptions = {...};
+jarOptions = {...};
+jarName = '...';
 
-    mergedOptions = require('underscore').extend({}, javacOptions, jarOptions);
+// Manual method.
+gulp.src(...)
+   .pipe(javac.javac(javacOptions).addLibraries(...))
+   .pipe(javac.jar(jarName, jarOptions));
 
-    gulp.src(...)
-       .pipe(javac(jarName, mergedOptions).addLibraries(...))
+// Automated method.
+mergedOptions = require('underscore')
+    .extend({}, javacOptions, jarOptions);
 
-The only overlapping options are `verbose` and `traceEnabled`
+gulp.src(...)
+   .pipe(javac(jarName, mergedOptions).addLibraries(...))
+```
+
+The only overlapping options are `verbose` and `traceEnabled`.  `jarName` is
+passed to `jar()` and `options` is passed to both `javac` and `jar`.
 
 ### trace
 
