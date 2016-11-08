@@ -13,7 +13,7 @@ javac = require('gulp-javac');
 
 gulp.task('example', function() {
   return gulp.src('./src/**/*.java')
-    .pipe(javac('example.jar').addLibrary('./lib/**/*.jar'))
+    .pipe(javac('example.jar').addLibraries('./lib/**/*.jar'))
     .pipe(gulp.dest('out'));
 });
 ```
