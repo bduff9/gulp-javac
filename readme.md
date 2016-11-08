@@ -28,7 +28,7 @@ files.
 
 ##### debuggingInformation
 
-Type: `string` or `string[]`
+Type: `string` or `string[]`  
 Default: `['lines', 'source']`
 
 Sets the debugging information output to the class files. Valid values are
@@ -38,49 +38,49 @@ all debugging information.
 
 ##### javaVersion
 
-Type: `string`
+Type: `string`  
 Default: *System default*
 
 Sets the Java language version to use.  Example: `'1.7'`
 
 ##### failOnWarning
 
-Type: `boolean`
+Type: `boolean`  
 Default: `false`
 
 Set to `true` for compilation to fail on compiler warnings.
 
 ##### noWarnings
 
-Type: `boolean`
+Type: `boolean`  
 Default: `false`
 
 Set to `true` to not output compiler warnings.
 
 ##### javacToolPath
 
-Type: `string`
+Type: `string`  
 Default: *javac on $PATH*
 
 Path to the javac compiler. If `javac` isn't on your $PATH, set this to the path.
 
 ##### verbose
 
-Type: `boolean`
+Type: `boolean`  
 Default: `false`
 
 Set to `true` to include verbose javac output.
 
 ##### javacCompilerFlags
 
-Type: `string[]`
+Type: `string[]`  
 Default: `[]`
 
 Flags to pass to the underlying javac runner.  See the `-J` flag in `man javac`.
 
 ##### traceEnabled
 
-Type: `boolean`
+Type: `boolean`  
 Default: `undefined` *(Uses module settings)*
 
 Sets tracing for this particular step. This overrides the module-level setting.
@@ -91,7 +91,7 @@ Adds libraries to the classpath for compilation against.
 
 ##### source
 
-**Required**
+***Required***  
 Type: `string` or `string[]` or readable stream of vinyl files
 
 Libraries to add. If this is a `string` or `string[]` it is treated as a
@@ -113,14 +113,14 @@ Base name of the jar file to create.
 
 ##### omitManifest
 
-Type: `boolean`
+Type: `boolean`  
 Default: `false`
 
 Use `true` to direct the jar tool to not create a manifest.
 
 ##### entryPoint
 
-Type: `string`
+Type: `string`  
 Default: `undefined`
 
 Set this to the full class name of the class to use when running the jar from the
@@ -128,28 +128,28 @@ command line.
 
 ##### jarToolPath
 
-Type: `string`
+Type: `string`  
 Default: *jar on $PATH*
 
 Path to the jar tool. If `jar` isn't on your $PATH, set this to the path.
 
 ##### verbose
 
-Type: `boolean`
+Type: `boolean`  
 Default: `false`
 
 Set to `true` to include verbose jar output.
 
 ##### traceEnabled
 
-Type: `boolean`
+Type: `boolean`  
 Default: `undefined` *(Uses module settings)*
 
 Sets tracing for this particular step. This overrides the module-level setting.
 
 ##### jarCompilerFlags
 
-Type: `string[]`
+Type: `string[]`  
 Default: `[]`
 
 Flags to pass to the underlying jar runner.  See the `-J` flag in `man jar`.
@@ -175,7 +175,7 @@ The only overlapping options are `verbose` and `traceEnabled`
 
 ### trace
 
-Type: `boolean`
+Type: `boolean`  
 Default: `false`
 
 Module-level flag for tracing. Set to `true` to enable trace output. This is useful
