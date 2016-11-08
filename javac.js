@@ -3,18 +3,17 @@
 (function() {
   "use strict";
 
-  let Readable = require('stream').Readable,
-      Duplex = require('stream').Duplex,
-      Transform = require('stream').Transform;
+  let Transform = require('stream').Transform;
 
 
   let fs = require('fs'),
-      path = require('path'),
-      gulp = require('gulp'),
-      gutil = require('gulp-util'),
       tmp = require('tmp'),
+      path = require('path'),
       spawn = require('child_process').spawn,
-      streamhelp = require('./stream-helpers');
+      vinyl = require('vinyl-file'),
+      lazypipe = require('lazypipe'),
+      gulp = require('gulp'),
+      gutil = require('gulp-util');
 
 
   let spawnlog = function(tool) {
@@ -26,11 +25,12 @@
   };
 
 
-  let trace = function(tool, ...message) {
-    if (compile.trace) {
-      gutil.log(tool + ':', ...message);
-    }
-    return message;
+  let tracer = function(tool, override) {
+    return function(...message) {
+      if (override || (override === undefined && compile.trace)) {
+        gutil.log(tool + ':', ...message);
+      }
+    };
   };
 
 
@@ -62,72 +62,108 @@
       noWarnings = false,
       javacToolPath = 'javac',
       verbose = false,
+      traceEnabled = undefined,
       javacCompilerFlags = []} = {}) {
 
-    trace('javac', 'Building javac task');
+    let trace = tracer('javac', traceEnabled);
 
     // List of all the promises that need to be fulfilled before we can run.
     let pendingWork = [];
 
-    // Output folder for .class files.
-    let outputFolder = tmp.dirSync({unsafeCleanup: true}).name;
+    // List of libraries referenced.
+    let libraries = [];
 
-    // javac option file for source files.
-    let sourceFile = tmp.fileSync(),
-        sourceFileStream = fs.createWriteStream(null, {fd: sourceFile.fd});
-
-    trace('javac', 'Source File Path:', sourceFile.name);
-
-    // javac option file for other arguments.
-    let argFile = tmp.fileSync(),
-        argFileStream = fs.createWriteStream(null, {fd: argFile.fd});
-
-    trace('javac', 'Argument File Path:', argFile.name);
-
-    // Build argFile with what we can so far.
-    argFileStream.write(`-d "${outputFolder}"\n`);
-
-    for (let flag of javacCompilerFlags) {
-      argFileStream.write(`-J${flag}\n`);
-    }
-
-    if (typeof debuggingInformation != "string") {
-      debuggingInformation = (debuggingInformation || []).join(',') || 'none';
-    }
-    if (debuggingInformation == "*") {
-      argFileStream.write(`-g\n`);
-    } else {
-      argFileStream.write(`-g:${debuggingInformation}\n`);
-    }
-
-    if (verbose) argFileStream.write('-verbose');
-    if (noWarnings) argFileStream.write('-nowarn');
-    if (failOnWarning) argFileStream.write('-Werror');
-
-    trace('javac', 'Simple arguments set up');
+    let sources = [];
 
     // Main transform stream for reading source files and writing class files.
-    let compileStream = new Duplex({
+    let compileStream = new Transform({
         readableObjectMode: true,
         writableObjectMode: true,
-        read() { /* You can't tell me what to do. */ },
-        write(file, enc, next) {
-          trace('javac', 'Source file:', file.path);
-          sourceFileStream.write(`"${file.path}"\n`);
+        transform(file, enc, next) {
+          trace('Source file:', file.path, sources);
+          sources.push(file.path);
           next();
-        }});
+        },
+        flush(next) {
+          Promise.all(pendingWork)
+            .then(function() {
+              // javac option file for source files.
+              let sourceFile = tmp.fileSync(),
+                  sourceFileStream = fs.createWriteStream(null, {fd: sourceFile.fd});
 
-    // Add waiting for all source files to the promises.
-    pendingWork.push(new Promise(function(fulfill, reject) {
-      compileStream.on('finish', function() {
-        trace('javac', 'Input stream consumed');
-        fulfill();
-      });
-    }));
+              for (let source of sources) {
+                sourceFileStream.write(`"${source}"\n`);
+              }
+
+              sourceFileStream.end();
+              trace('Source File Path:', sourceFile.name);
+
+              // javac option file for other arguments.
+              let argFile = tmp.fileSync(),
+                  argFileStream = fs.createWriteStream(null, {fd: argFile.fd});
+
+              // Output folder for .class files.
+              let outputFolder = tmp.dirSync({unsafeCleanup: false}).name;
+              argFileStream.write(`-d "${outputFolder}"\n`);
+
+              for (let flag of javacCompilerFlags) {
+                argFileStream.write(`-J${flag}\n`);
+              }
+
+              if (typeof debuggingInformation != "string") {
+                debuggingInformation = (debuggingInformation || []).join(',') || 'none';
+              }
+              if (debuggingInformation == "*") {
+                argFileStream.write(`-g\n`);
+              } else {
+                argFileStream.write(`-g:${debuggingInformation}\n`);
+              }
+
+              if (verbose) argFileStream.write('-verbose\n');
+              if (noWarnings) argFileStream.write('-nowarn\n');
+              if (failOnWarning) argFileStream.write('-Werror\n');
+
+              if (javaVersion) {
+                argFileStream.write(`-source ${javaVersion}\n`);
+                argFileStream.write(`-target ${javaVersion}\n`);
+              }
+
+              for (let library of libraries) {
+                argFileStream.write(`-classpath "${library}"\n`);
+              }
+
+              argFileStream.end();
+              trace('Argument File Path:', argFile.name);
+
+              // And here... we... go...
+              trace('javac', 'Executing:', javacToolPath);
+              let javacProc = spawn(javacToolPath, [
+                  '@' + argFile.name,
+                  '@' + sourceFile.name]);
+
+              javacProc.stdout.on('data', spawnlog('javac'));
+              javacProc.stderr.on('data', spawnlog('javac'));
+
+              javacProc.on('close', function(code) {
+                trace('javac', 'javac complete; code:', code);
+                if (code !== 0) {
+                  throw new gutil.PluginError('gulp-javac', 'javac failed');
+                } else {
+                  gulp.src(path.join(outputFolder, '**'), {nodir: true})
+                    .on('data', function(chunk) { compileStream.push(chunk); })
+                    .on('end', next);
+                }
+              });
+            })
+            .catch(function(error) {
+              gutil.log(error);
+              throw new gutil.PluginError('gulp-javac', 'javac failed');
+            });
+        }});
 
     /** Adds a library path. Accepts string, string[], or source stream. */
     compileStream.addLibraries = function(source) {
-      trace('javac', 'Adding library:', source);
+      trace('Adding library:', source);
       // Make string-y things into source stream.
       if (typeof source == "string" || Array.isArray(source)) {
         source = gulp.src(source);
@@ -135,8 +171,8 @@
 
       // Pipe all libraries directly to the option stream.
       source.on('data', function(file) {
-        trace('javac', 'Library added:', file.path);
-        argFileStream.write(`-classpath "${file.path}"\n`);
+        trace('Library added:', file.path);
+        libraries.push(file.path);
       });
 
       // Add waiting for all libraries to the promises.
@@ -146,44 +182,8 @@
           fulfill();
         });
       }));
+      return compileStream;
     };
-
-    Promise.all(pendingWork)
-      .then(function() {
-        trace('javac', 'All source and library streams complete');
-
-        // Streams are complete, button them up.
-        fs.close(argFile.fd);
-        fs.close(sourceFile.fd);
-
-        // And here... we... go...
-        trace('javac', 'Executing:', javacToolPath);
-        let javacProc = spawn(javacToolPath, [
-            '@' + argFile.name,
-            '@' + sourceFile.name]);
-
-        javacProc.stdout.on('data', spawnlog('javac'));
-        javacProc.stderr.on('data', spawnlog('javac'));
-
-        javacProc.on('close', function(code) {
-          trace('javac', 'javac complete; code:', code);
-          if (code !== 0) {
-            compileStream.emit('javac failed');
-            compileStream.push(null);
-          } else {
-            streamhelp.forwardStream(
-              gulp.src(outputFolder + '/**', {nodir: true}),
-              compileStream);
-          }
-        });
-      })
-      .catch(function(error) {
-          gutil.log(error);
-          compileStream.emit(error);
-          compileStream.push(null);
-        });
-
-    trace('javac', 'javac task built');
 
     return compileStream;
   };
@@ -208,92 +208,74 @@
       entrypoint = null,
       jarToolPath = 'jar',
       verbose = false,
+      traceEnabled = undefined,
       jarCompilerFlags = []} = {}) {
 
-    trace('jar', 'Building jar task');
+    let trace = tracer('jar', traceEnabled);
 
-    let classPaths = {};
+    let jarPath, jarFolder;
 
-    let jarStream = new Duplex({
+    let jarStream = new Transform({
         readableObjectMode: true,
         writableObjectMode: true,
-        read() { /* You can't tell me what to do. */ },
-        write(file, enc, next) {
-          trace('jar', 'Source file:', file.path);
-          if (!(file.base in classPaths)) {
-            trace('jar', 'New jar folder:', file.base);
-            classPaths[file.base] = [];
+        transform(file, enc, next) {
+          let args = [];
+          let options = ['u', 'f'];
+          if (!jarPath) {
+            jarFolder = tmp.dirSync({unsafeCleanup: true}).name
+            jarPath = path.join(jarFolder, jarName);
+
+            trace('Creating jar:', jarPath);
+
+            options = ['c', 'f'];
+            if (entrypoint) {
+              options.push('e');
+              args.push(entrypoint);
+            }
           }
 
-          trace('jar', 'Source file:', file.path);
-          classPaths[file.base].push(file.relative);
-          next();
+          if (verbose) options.push('v');
+          if (omitManifest) options.push('M');
+
+          args.push('-C', file.base, file.relative);
+
+          args.unshift(jarPath);
+          args.unshift(options.join(''));
+
+          // And here... we... go...
+          trace('Executing:', jarToolPath, args);
+
+          let jarProc = spawn(jarToolPath, args);
+
+          jarProc.stdout.on('data', spawnlog('jar'));
+          jarProc.stderr.on('data', spawnlog('jar'));
+
+          jarProc.on('close', function(code) {
+            trace('jar complete; code:', code);
+            if (code !== 0) {
+              jarStream.emit('jar failed');
+              jarStream.push(null);
+            }
+            next();
+          });
+        },
+        flush(next) {
+          vinyl.read(jarPath, { base: jarFolder })
+            .then(function(file) {
+                jarStream.push(file)
+                jarStream.push(null);
+                next();
+              });
         }});
-
-    jarStream.on('finish', function() {
-      trace('jar', 'Input stream consumed');
-
-      // Time to build the jar.
-      let jarFile = path.join(
-        tmp.dirSync({unsafeCleanup: true}).name,
-        jarName);
-
-      let options = ['c', 'f'];
-      let args = [jarFile];
-
-      if (verbose) options.push('v');
-      if (omitManifest) options.push('M');
-
-      if (entrypoint) {
-        options.push('e');
-        args.push(entrypoint);
-      }
-
-      for (let base in classPaths) {
-        args.push('-C', base);
-
-        for (let file of classPaths[base]) {
-          args.push(file);
-        }
-      }
-
-      args.unshift(options.join(''));
-      trace('jar', 'Arguments:', args);
-
-      // And here... we... go...
-      trace('jar', 'Executing:', jarToolPath);
-      let jarProc = spawn(jarToolPath, args);
-
-      jarProc.stdout.on('data', spawnlog('jar'));
-      jarProc.stderr.on('data', spawnlog('jar'));
-
-      jarProc.on('close', function(code) {
-        trace('jar', 'jar complete; code:', code);
-        if (code !== 0) {
-          jarStream.emit('jar failed');
-          jarStream.push(null);
-        } else {
-          streamhelp.forwardStream(gulp.src(jarFile), jarStream);
-        }
-      });
-    });
-
-    trace('jar', 'Jar task built');
 
     return jarStream;
   };
 
 
   var compile = function(jarName, options) {
-    let javacStream = javac(options);
-    let jarStream = javacStream.pipe(jar(jarName, options));
-
-    let compileStream = streamhelp.encapsulateStream(
-      javacStream, javacStream.pipe(jar(jarName, options)));
-
-    compileStream.addLibraries = javacStream.addLibraries.bind(javacStream);
-
-    return compileStream;
+    return lazypipe()
+      .pipe(javac, options)
+      .pipe(jar, jarName, options)();
   };
 
   module.exports = compile;

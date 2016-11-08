@@ -1,9 +1,12 @@
 {
   "name": "gulp-javac",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Java compilation tools for Gulp.",
   "license": "MIT",
-  "author": "Paul Hounshell",
+  "author": {
+    "name": "Paul Hounshell",
+    "email": "paul.hounshell@gmail.com"
+  },
   "homepage": "https://github.com/hounshell/gulp-javac#readme",
   "keywords": [
     "java",
@@ -25,7 +28,9 @@
   },
   "dependencies": {
     "gulp-util": "^3.0.0",
-    "tmp": "0.0.30"
+    "lazypipe": "^1.0.1",
+    "tmp": "0.0.30",
+    "vinyl-file": "^2.0.0"
   },
   "devDependencies": {
     "gulp": "^3.8.10",
