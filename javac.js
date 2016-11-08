@@ -84,7 +84,7 @@
                   argFileStream = fs.createWriteStream(null, {fd: argFile.fd});
 
               // Output folder for .class files.
-              let outputFolder = tmp.dirSync({unsafeCleanup: false}).name;
+              let outputFolder = tmp.dirSync({unsafeCleanup: true}).name;
               argFileStream.write(`-d "${outputFolder}"\n`);
 
               for (let flag of javacCompilerFlags) {
@@ -193,7 +193,7 @@
           let args = [];
           let options = ['u', 'f'];
           if (!jarPath) {
-            jarFolder = tmp.dirSync({unsafeCleanup: true}).name
+            jarFolder = tmp.dirSync({unsafeCleanup: true}).name;
             jarPath = path.join(jarFolder, jarName);
 
             trace('Creating jar:', jarPath);
@@ -233,7 +233,7 @@
         flush(next) {
           vinyl.read(jarPath, { base: jarFolder })
             .then(function(file) {
-                jarStream.push(file)
+                jarStream.push(file);
                 jarStream.push(null);
                 next();
               });
