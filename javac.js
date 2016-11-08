@@ -34,35 +34,14 @@
   };
 
 
-  /**
-   * Simple arguments are supplied via the function arguments. Source files
-   * are piped in, but libraries need to be added via .addLibrary().
-   *
-   * There is currently no support for annotation processors. If you need it,
-   * submit a patch.
-   *
-   * Options:
-   *   debuggingInformation: debugging information to export. Either pass a
-   *                         comma-delimited string or an array of strings.
-   *                         Pass "*" to export all options.
-   *                         Valid values: lines, source, var
-   *                         (default: ['lines', 'source']).
-   *   javaVersion: Java language version to target (default: 1.7).
-   *   failOnWarning: Treat compile warnings as errors (default: false).
-   *   noWarnings: Suppress warning messages (default: false).
-   *   javacToolPath: Path to javac binary (default: javac on $PATH)
-   *   verbose: Output verbose information (default: false)
-   *   compilerOptions: Options passed to the java launcher called by javac
-   *                    (default: []).
-   */
   var javac = function({
       debuggingInformation = ['lines', 'source'],
-      javaVersion = '1.7',
+      javaVersion,
       failOnWarning = false,
       noWarnings = false,
       javacToolPath = 'javac',
       verbose = false,
-      traceEnabled = undefined,
+      traceEnabled,
       javacCompilerFlags = []} = {}) {
 
     let trace = tracer('javac', traceEnabled);
@@ -80,7 +59,7 @@
         readableObjectMode: true,
         writableObjectMode: true,
         transform(file, enc, next) {
-          if (file.isDirectory()) {
+          if (!file.isDirectory()) {
             trace('Source file:', file.path, sources);
             sources.push(file.path);
             next();
@@ -173,8 +152,10 @@
 
       // Pipe all libraries directly to the option stream.
       source.on('data', function(file) {
-        trace('Library added:', file.path);
-        libraries.push(file.path);
+        if (!file.isDirectory()) {
+          trace('Library added:', file.path);
+          libraries.push(file.path);
+        }
       });
 
       // Add waiting for all libraries to the promises.
@@ -187,30 +168,18 @@
       return compileStream;
     };
 
+    trace('Created javac task');
+
     return compileStream;
   };
 
-  /**
-   * Prepares a jar file.
-   *
-   * Source class files are piped in and are expected to have correct relative
-   * paths. Simple arguments are supplied via the function arguments.
-   *
-   * Options:
-   *   jarName: filename of the jar to create (required).
-   *   omitManifest: Skip writing a manifest (default: false)
-   *   entrypoint: Application entry-point (default: none)
-   *   jarToolPath: Path to jar binary (default: jar on $PATH)
-   *   verbose: Output verbose information (default: false)
-   *   jarCompilerFlags: Options passed to the java launcher called by jar
-   *                    (default: []).
-   */
+
   var jar = function(jarName, {
       omitManifest = false,
-      entrypoint = null,
+      entrypoint,
       jarToolPath = 'jar',
       verbose = false,
-      traceEnabled = undefined,
+      traceEnabled,
       jarCompilerFlags = []} = {}) {
 
     let trace = tracer('jar', traceEnabled);
@@ -269,6 +238,8 @@
                 next();
               });
         }});
+
+    trace('Created jar task');
 
     return jarStream;
   };
