@@ -60,7 +60,7 @@
         writableObjectMode: true,
         transform(file, enc, next) {
           if (!file.isDirectory()) {
-            trace('Source file:', file.path, sources);
+            trace('Source file:', file.path);
             sources.push(file.path);
             next();
           }
