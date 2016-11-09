@@ -109,8 +109,9 @@
                 argFileStream.write(`-target ${javaVersion}\n`);
               }
 
-              for (let library of libraries) {
-                argFileStream.write(`-classpath "${library}"\n`);
+              if (libraries.length > 0) {
+                argFileStream.write(
+                    `-classpath "${libraries.join(path.delimiter)}"\n`);
               }
 
               argFileStream.end();
