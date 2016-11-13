@@ -186,58 +186,78 @@
     let trace = tracer('jar', traceEnabled);
 
     let jarPath, jarFolder;
+    let jarList = [];
+
+    let jarBatch = function(next) {
+        if (jarList.length === 0) {
+          next();
+          return;
+        }
+
+        let args = [];
+        let options = ['u', 'f'];
+        if (!jarPath) {
+          jarFolder = tmp.dirSync({unsafeCleanup: false}).name;
+          jarPath = path.join(jarFolder, jarName);
+
+          trace('Creating jar:', jarPath);
+
+          options = ['c', 'f'];
+          if (entrypoint) {
+            options.push('e');
+            args.push(entrypoint);
+          }
+        }
+
+        if (verbose) options.push('v');
+        if (omitManifest) options.push('M');
+
+        for (let file of jarList) {
+          args.push('-C', file.base, file.relative);
+        }
+
+        args.unshift(jarPath);
+        args.unshift(options.join(''));
+
+        // And here... we... go...
+        trace('Executing:', jarToolPath, args);
+
+        let jarProc = spawn(jarToolPath, args);
+
+        jarProc.stdout.on('data', spawnlog('jar'));
+        jarProc.stderr.on('data', spawnlog('jar'));
+
+        jarProc.on('close', function(code) {
+          trace('jar complete; code:', code);
+          if (code !== 0) {
+            jarStream.emit('jar failed');
+            jarStream.push(null);
+          }
+          next();
+        });
+      };
 
     let jarStream = new Transform({
         readableObjectMode: true,
         writableObjectMode: true,
         transform(file, enc, next) {
-          let args = [];
-          let options = ['u', 'f'];
-          if (!jarPath) {
-            jarFolder = tmp.dirSync({unsafeCleanup: true}).name;
-            jarPath = path.join(jarFolder, jarName);
-
-            trace('Creating jar:', jarPath);
-
-            options = ['c', 'f'];
-            if (entrypoint) {
-              options.push('e');
-              args.push(entrypoint);
-            }
-          }
-
-          if (verbose) options.push('v');
-          if (omitManifest) options.push('M');
-
-          args.push('-C', file.base, file.relative);
-
-          args.unshift(jarPath);
-          args.unshift(options.join(''));
-
-          // And here... we... go...
-          trace('Executing:', jarToolPath, args);
-
-          let jarProc = spawn(jarToolPath, args);
-
-          jarProc.stdout.on('data', spawnlog('jar'));
-          jarProc.stderr.on('data', spawnlog('jar'));
-
-          jarProc.on('close', function(code) {
-            trace('jar complete; code:', code);
-            if (code !== 0) {
-              jarStream.emit('jar failed');
-              jarStream.push(null);
-            }
+          jarList.push(file);
+          if (jarList.length >= 40) {
+            jarBatch(next);
+            jarList = [];
+          } else {
             next();
-          });
+          }
         },
         flush(next) {
-          vinyl.read(jarPath, { base: jarFolder })
-            .then(function(file) {
-                jarStream.push(file);
-                jarStream.push(null);
-                next();
-              });
+          jarBatch(function() {
+              vinyl.read(jarPath, { base: jarFolder })
+                .then(function(file) {
+                    jarStream.push(file);
+                    jarStream.push(null);
+                    next();
+                  });
+            });
         }});
 
     trace('Created jar task');
