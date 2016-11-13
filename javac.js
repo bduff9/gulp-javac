@@ -247,9 +247,23 @@
 
 
   var compile = function(jarName, options) {
-    return lazypipe()
-      .pipe(javac, options)
+    let javacInstance;
+
+    let javacBuilder = function(...args) {
+        javacInstance = javac(...args);
+        return javacInstance;
+      };
+
+    let result = lazypipe()
+      .pipe(javacBuilder, options)
       .pipe(jar, jarName, options)();
+
+    result.addLibraries = function(...args) {
+        javacInstance.addLibraries(...args);
+        return result;
+      };
+
+    return result;
   };
 
   module.exports = compile;
