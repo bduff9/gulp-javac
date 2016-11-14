@@ -144,28 +144,38 @@
         }});
 
     /** Adds a library path. Accepts string, string[], or source stream. */
-    compileStream.addLibraries = function(source) {
-      trace('Adding library:', source);
-      // Make string-y things into source stream.
-      if (typeof source == "string" || Array.isArray(source)) {
-        source = gulp.src(source);
+    compileStream.addLibraries = function(...sources) {
+      const libraryAdder = function(file) {
+          if (!file.isDirectory()) {
+            trace('Library added:', file.path);
+            libraries.push(file.path);
+          }
+        };
+
+      for (let source of sources) {
+        let stream;
+        if (typeof source == "string" || Array.isArray(source)) {
+          // Make string-y things into source stream.
+          trace('Adding libraries from path(s):', source);
+          stream = gulp.src(source);
+        } else {
+          // Assume anything else is stream-y.
+          trace('Adding libraries from stream:', typeof source);
+          stream = source;
+        }
+
+        // Pipe all libraries directly to the option stream.
+        stream.on('data', libraryAdder);
+
+        // Add waiting for all libraries to the promises.
+        pendingWork.push(new Promise(function(fulfill, reject) {  // jshint ignore:line
+          stream.on('end', function() {
+            trace('javac', 'Library stream complete');
+            fulfill();
+          });
+        }));
       }
 
-      // Pipe all libraries directly to the option stream.
-      source.on('data', function(file) {
-        if (!file.isDirectory()) {
-          trace('Library added:', file.path);
-          libraries.push(file.path);
-        }
-      });
-
-      // Add waiting for all libraries to the promises.
-      pendingWork.push(new Promise(function(fulfill, reject) {
-        source.on('end', function() {
-          trace('javac', 'Library stream complete');
-          fulfill();
-        });
-      }));
       return compileStream;
     };
 
