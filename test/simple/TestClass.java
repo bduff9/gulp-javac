@@ -2,7 +2,11 @@ package test_package;
 
 public class TestClass {
   public static void main(String[] args) {
-    System.out.println("Hello world!");
+    new TestClass().helloWorld();
+  }
+
+  protected void helloWorld() {
+    System.out.println("Hello world, from " + getClass().getName());
   }
 }
 

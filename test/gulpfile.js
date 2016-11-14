@@ -3,22 +3,47 @@
 (function() {
   "use strict";
 
-  let gulp = require('gulp'),
-      javac = require('../javac');
+  const del = require('del'),
+        gulp = require('gulp'),
+        javac = require('../javac'),
+        merge = require('merge-stream'),
+        unzip = require('gulp-unzip'),
+        minimatch = require('minimatch'),
+        intermediate = require('gulp-intermediate');
 
-  gulp.task('simple-manual', function() {
-    return gulp.src('simple/**/*')
+  gulp.task('clean', function() {
+      del.sync('out');
+    });
+
+  gulp.task('simple-manual', ['clean'], function() {
+      return gulp.src('simple/**/*')
         .pipe(javac.javac())
         .pipe(javac.jar('simple-manual.jar', {entrypoint: "test_package.TestClass"}))
         .pipe(gulp.dest('out/'));
-  });
+    });
 
-  gulp.task('simple-combined', function() {
-    return gulp.src('simple/**/*')
+  gulp.task('simple-combined', ['clean'], function() {
+      return gulp.src('simple/**/*')
         .pipe(javac('deep/simple-combined.jar', {entrypoint: "test_package.TestClass"}))
         .pipe(gulp.dest('out/'));
-  });
+    });
 
-  gulp.task('default', ['simple-manual', 'simple-combined']);
+  gulp.task('repackaging', ['clean', 'simple-manual'], function() {
+      return merge(
+          gulp.src('dependent/**/*')
+            .pipe(javac.javac()
+                .addLibraries('out/simple-manual.jar')),
+          gulp.src('out/simple-manual.jar')
+            .pipe(unzip({
+                filter: function(entry) {
+                  return minimatch(entry.path, '**/*.class');
+                }}))
+            .pipe(intermediate(null, function(dir, cb) { cb(); })))
+        .pipe(javac.jar('repackaged.jar', {entrypoint: "dependent_package.DependentClass"}))
+        .pipe(gulp.dest('out/repackaged/'));
+    });
+        
+
+  gulp.task('default', ['simple-manual', 'simple-combined', 'repackaging']);
 })();
 
