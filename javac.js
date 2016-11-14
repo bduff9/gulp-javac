@@ -214,7 +214,7 @@
             fs.mkdirSync(path.dirname(jarPath));
           } catch (e) {
             // Meh. Probably exists.
-            trace('mkdir error', e);
+            if (e.code !== 'EEXIST') throw e;
           }
 
           trace('Creating jar:', jarPath);
