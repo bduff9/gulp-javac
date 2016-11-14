@@ -1,6 +1,6 @@
 {
   "name": "gulp-javac",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Java compilation tools for Gulp.",
   "license": "MIT",
   "author": {
