@@ -28,6 +28,14 @@
         .pipe(gulp.dest('out/'));
     });
 
+  gulp.task('partial', ['clean', 'simple-manual'], function() {
+      return gulp.src('dependent/**/*')
+        .pipe(javac('partial.jar', {entrypoint: "dependent_package.DependentClass"})
+            .addLibraries('out/simple-manual.jar'))
+        .pipe(gulp.dest('out/'));
+    });
+
+
   gulp.task('repackaging', ['clean', 'simple-manual'], function() {
       return merge(
           gulp.src('dependent/**/*')
@@ -44,6 +52,6 @@
     });
         
 
-  gulp.task('default', ['simple-manual', 'simple-combined', 'repackaging']);
+  gulp.task('default', ['simple-manual', 'simple-combined', 'partial', 'repackaging']);
 })();
 
