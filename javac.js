@@ -200,6 +200,13 @@
           jarFolder = tmp.dirSync({unsafeCleanup: false}).name;
           jarPath = path.join(jarFolder, jarName);
 
+          try {
+            fs.mkdirSync(path.dirname(jarPath));
+          } catch (e) {
+            // Meh. Probably exists.
+            trace('mkdir error', e);
+          }
+
           trace('Creating jar:', jarPath);
 
           options = ['c', 'f'];

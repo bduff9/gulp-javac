@@ -15,7 +15,7 @@
 
   gulp.task('simple-combined', function() {
     return gulp.src('simple/**/*')
-        .pipe(javac('simple-combined.jar', {entrypoint: "test_package.TestClass"}))
+        .pipe(javac('deep/simple-combined.jar', {entrypoint: "test_package.TestClass"}))
         .pipe(gulp.dest('out/'));
   });
 
