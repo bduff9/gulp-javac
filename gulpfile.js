@@ -19,7 +19,10 @@
 
   gulp.task('run-tests', function() {
     if (testProcess) testProcess.kill();
-    testProcess = spawn('gulp', ['--gulpfile', 'test/gulpfile.js'], {stdio: 'inherit'});
+    testProcess = spawn(
+        'gulp',
+        ['--gulpfile', 'test/gulpfile.js', '--gulp-javac.trace'],
+        {stdio: 'inherit'});
   });
 
   gulp.task('continuous', function() {

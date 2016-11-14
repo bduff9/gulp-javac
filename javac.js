@@ -297,6 +297,6 @@
   module.exports.compile = compile;
   module.exports.javac = javac;
   module.exports.jar = jar;
-  module.exports.trace = false;
+  module.exports.trace = process.argv.indexOf('--gulp-javac.trace') >= 0;
 })();
 
