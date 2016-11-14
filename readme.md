@@ -13,7 +13,9 @@ javac = require('gulp-javac');
 
 gulp.task('example', function() {
   return gulp.src('./src/**/*.java')
-    .pipe(javac('example.jar').addLibraries('./lib/**/*.jar'))
+    .pipe(javac('example.jar')
+            .addLibraries('./lib/**/*.jar')
+            .addLibraries('./external/**/*.jar'))
     .pipe(gulp.dest('out'));
 });
 ```
@@ -22,7 +24,9 @@ gulp.task('example', function() {
 
 ### javac.javac([options])
 
-Compiles source into a set a .class files. Input files are expected to be
+Returns: Duplex Stream (`<java source files>` ---> `<class files>`)
+
+Compiles source into a set of .class files. Input files are expected to be
 java source files; directories are ignored.  Produces a stream of generated
 files.
 
@@ -87,24 +91,65 @@ Default: `undefined` *(Uses module settings)*
 
 Sets tracing for this particular step. This overrides the module-level setting.
 
-#### addLibraries(source)
+#### addLibraries(...sources)
 
-Adds libraries to the classpath for compilation against.
+Returns: javac object
 
-##### source
+Adds libraries to the classpath for compilation against. This returns the
+javac object that it was called on so that calls can be chained.
+
+##### sources
 
 ***Required***  
 Type: `string` or `string[]` or readable stream of vinyl files
 
 Libraries to add. If this is a `string` or `string[]` it is treated as a
 glob spec and all files are added. Otherwise all files on the stream are
-added.
+added.  The following are all equivalent:
+
+```js
+javac().addLibraries('./a/**/*').addLibraries('./b/**/*');
+javac().addLibraries('./a/**/*', './b/**/*');
+javac().addLibraries(['./a/**/*', './b/**/*']);
+javac().addLibraries(gulp.src('./a/**/*'), gulp.src('./b/**/*'));
+javac().addLibraries(gulp.src(['./a/**/*', './b/**/*']));
+```
 
 ### javac.jar(jarName, [options])
+
+Returns: Duplex Stream (`<class files>` ---> `<jar file>`)
 
 Builds a jar file from provided sources.  Expects a stream of jar contents
 and will use relative paths for jar contents.  Produces a stream with just
 the resulting jar.
+
+**Note:** The jar command will ***not*** repackage other jars. If other jars
+are included in the sources, those jars will be embedded within the created
+jar, which probably isn't what you want. If you want to repackage jars, you
+can try the following recipe:
+
+```js
+const merge = require('merge-stream'),
+      unzip = require('gulp-unzip'),
+      minimatch = require('minimatch'),
+      intermediate = require('gulp-intermediate');
+
+merge(
+    gulp.src('./src/**/*.java')
+      .pipe(javac.javac()
+            .addLibraries('./lib/**/*.jar')),
+    gulp.src('./lib/**/*.jar')
+      .pipe(unzip({
+          filter: function(entry) {
+            return minimatch(entry.path, '**/*.class');
+          }}))
+      .pipe(intermediate(null, function(dir, cb) { cb(); })))
+  .pipe(jar('example.jar'));
+```
+
+This is likely to fail if there are collisions. In this case you'll probably
+have to use other tools, like [Jar Jar Links](https://code.google.com/archive/p/jarjar/)
+or [ProGuard](http://proguard.sourceforge.net/).
 
 #### jarName
 
@@ -158,29 +203,34 @@ Flags to pass to the underlying jar runner.  See the `-J` flag in `man jar`.
 
 ### javac(jarName, [options])
 
-Convenience function for javac.javac(...) and javac.jar(...). These are equivalent:
+Returns: Duplex Stream (`<java source files>` ---> `<jar file>`)
+
+Convenience function for running both javac.javac(...) and javac.jar(...). These
+are equivalent:
 
 ```js
 // Options.
-javacOptions = {...};
-jarOptions = {...};
-jarName = '...';
+let javacOptions = {...},
+    jarOptions = {...},
+    jarName = '...';
 
-// Manual method.
+let mergedOptions = require('underscore')
+  .extend({}, javacOptions, jarOptions);
+
+// Manual method:
 gulp.src(...)
-   .pipe(javac.javac(javacOptions).addLibraries(...))
-   .pipe(javac.jar(jarName, jarOptions));
+  .pipe(javac.javac(mergedOptions).addLibraries(...))
+  .pipe(javac.jar(jarName, mergedOptions));
 
-// Automated method.
-mergedOptions = require('underscore')
-    .extend({}, javacOptions, jarOptions);
-
+// Merged method:
 gulp.src(...)
-   .pipe(javac(jarName, mergedOptions).addLibraries(...))
+  .pipe(javac(jarName, mergedOptions).addLibraries(...));
 ```
 
 The only overlapping options are `verbose` and `traceEnabled`.  `jarName` is
-passed to `jar()` and `options` is passed to both `javac` and `jar`.
+passed to `jar()` and `options` is passed to both `javac` and `jar`.  The
+`addLibraries()` method is passed to `javac`, but the return object is this
+stream to allow chaining.
 
 ### trace
 
@@ -189,6 +239,8 @@ Default: `false`
 
 Module-level flag for tracing. Set to `true` to enable trace output. This is useful
 when trying to diagnose a problem with compilation, or when developing the library.
+
+This can be enabled per-run by passing a `--gulp-javac.trace` flag to `gulp`.
 
 ## License
 
