@@ -33,8 +33,12 @@
     "vinyl-file": "^2.0.0"
   },
   "devDependencies": {
+    "del": "^2.2.2",
     "gulp": "^3.8.10",
     "gulp-jshint": "^2.0.2",
-    "jshint": "^2.9.4"
+    "gulp-unzip": "^0.1.4",
+    "jshint": "^2.9.4",
+    "merge-stream": "^1.0.0",
+    "minimatch": "^3.0.3"
   }
 }
