@@ -283,6 +283,54 @@
   };
 
 
+  var unjar = function({
+      jarToolPath = 'jar',
+      includeAllFiles = false,
+      verbose = false,
+      traceEnabled} = {}) {
+
+    let trace = tracer('unjar', traceEnabled);
+
+    let unjarStream = new Transform({
+        readableObjectMode: true,
+        writableObjectMode: true,
+        transform(file, enc, next) {
+          let outputFolder = tmp.dirSync({unsafeCleanup: true}).name;
+
+          trace('Expanding jar into', outputFolder);
+
+          let args = ['-xf' + verbose ? 'v' : '', file.path];
+
+          // And here... we... go...
+          trace('Executing:', jarToolPath, args);
+          let unjarProc = spawn(jarToolPath, args, {'cwd': outputFolder});
+
+          unjarProc.stdout.on('data', spawnlog('unjar'));
+          unjarProc.stderr.on('data', spawnlog('unjar'));
+
+          unjarProc.on('close', function(code) {
+            trace('unjar complete; code:', code);
+            if (code !== 0) {
+              throw new gutil.PluginError('gulp-unjar', 'unjar failed');
+            } else {
+              let spec = path.join('**', includeAllFiles ? '*' : '*.class');
+              gulp.src(path.join(outputFolder, spec), {nodir: true})
+                .on('data', function(chunk) { unjarStream.push(chunk); })
+                .on('end', next);
+            }
+          });
+        },
+        flush(next) {
+          next();
+        }});
+
+    trace('Created unjar task');
+
+    return unjarStream;
+  };
+
+
+
   var compile = function(jarName, options) {
     let javacInstance;
 
@@ -307,6 +355,7 @@
   module.exports.compile = compile;
   module.exports.javac = javac;
   module.exports.jar = jar;
+  module.exports.unjar = unjar;
   module.exports.trace = process.argv.indexOf('--gulp-javac.trace') >= 0;
 })();
 

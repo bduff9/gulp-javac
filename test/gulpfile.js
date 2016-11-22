@@ -42,11 +42,7 @@
             .pipe(javac.javac()
                 .addLibraries('out/simple-manual.jar')),
           gulp.src('out/simple-manual.jar')
-            .pipe(unzip({
-                filter: function(entry) {
-                  return minimatch(entry.path, '**/*.class');
-                }}))
-            .pipe(intermediate(null, function(dir, cb) { cb(); })))
+            .pipe(javac.unjar()))
         .pipe(javac.jar('repackaged.jar', {entrypoint: "dependent_package.DependentClass"}))
         .pipe(gulp.dest('out/repackaged/'));
     });

@@ -129,21 +129,14 @@ jar, which probably isn't what you want. If you want to repackage jars, you
 can try the following recipe:
 
 ```js
-const merge = require('merge-stream'),
-      unzip = require('gulp-unzip'),
-      minimatch = require('minimatch'),
-      intermediate = require('gulp-intermediate');
+const merge = require('merge-stream');
 
 merge(
     gulp.src('./src/**/*.java')
       .pipe(javac.javac()
             .addLibraries('./lib/**/*.jar')),
     gulp.src('./lib/**/*.jar')
-      .pipe(unzip({
-          filter: function(entry) {
-            return minimatch(entry.path, '**/*.class');
-          }}))
-      .pipe(intermediate(null, function(dir, cb) { cb(); })))
+      .pipe(javac.unjar()))unzip({
   .pipe(jar('example.jar'));
 ```
 
@@ -200,6 +193,45 @@ Type: `string[]`
 Default: `[]`
 
 Flags to pass to the underlying jar runner.  See the `-J` flag in `man jar`.
+
+### javac.unjar([options])
+
+Returns: Duplex Stream (`<jar files>` ---> `<jar contents>`)
+
+Extracts files from a jar. Expects a stream of jar files. Produces a stream
+of the jar contents. By default this will only include `.class` files, but
+can be expanded to all files by using the `includeAllFiles` option.
+
+#### options
+  
+##### jarToolPath
+
+Type: `string`
+Default: *jar on $PATH*
+
+Path to the jar tool. If `jar` isn't on your $PATH, set this to the path.
+
+##### includeAllFiles
+
+Type: `boolean`
+Default: `false`
+
+Set to `true` to include all jar contents. Otherwise only `.class` files will
+be included.
+
+##### verbose
+
+Type: `boolean`
+Default: `false`
+
+Set to `true` to include verbose jar output.
+
+##### traceEnabled
+
+Type: `boolean`
+Default: `undefined` *(Uses module settings)*
+
+Sets tracing for this particular step. This overrides the module-level setting.
 
 ### javac(jarName, [options])
 
