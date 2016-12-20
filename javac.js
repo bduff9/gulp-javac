@@ -13,7 +13,8 @@
       vinyl = require('vinyl-file'),
       lazypipe = require('lazypipe'),
       gulp = require('gulp'),
-      gutil = require('gulp-util');
+      gutil = require('gulp-util'),
+      slash = require('slash');
 
 
   let spawnlog = function(tool) {
@@ -31,6 +32,12 @@
         gutil.log(tool + ':', ...message);
       }
     };
+  };
+
+  // 2016-12-19: Used to correct paths on Windows machines
+  let fixPath = function(path) {
+    if (process.platform === 'win32') return slash(path);
+    return path;
   };
 
 
@@ -60,8 +67,8 @@
         writableObjectMode: true,
         transform(file, enc, next) {
           if (!file.isDirectory()) {
-            trace('Source file:', file.path);
-            sources.push(file.path);
+            trace('Source file:', fixPath(file.path));
+            sources.push(fixPath(file.path));
             next();
           }
         },
@@ -77,14 +84,14 @@
               }
 
               sourceFileStream.end();
-              trace('Source File Path:', sourceFile.name);
+              trace('Source File Path:', fixPath(sourceFile.name));
 
               // javac option file for other arguments.
               let argFile = tmp.fileSync(),
                   argFileStream = fs.createWriteStream(null, {fd: argFile.fd});
 
               // Output folder for .class files.
-              let outputFolder = tmp.dirSync({unsafeCleanup: true}).name;
+              let outputFolder = fixPath(tmp.dirSync({unsafeCleanup: true}).name);
               argFileStream.write(`-d "${outputFolder}"\n`);
 
               for (let flag of javacCompilerFlags) {
@@ -115,13 +122,13 @@
               }
 
               argFileStream.end();
-              trace('Argument File Path:', argFile.name);
+              trace('Argument File Path:', fixPath(argFile.name));
 
               // And here... we... go...
               trace('javac', 'Executing:', javacToolPath);
               let javacProc = spawn(javacToolPath, [
-                  '@' + argFile.name,
-                  '@' + sourceFile.name]);
+                  '@' + fixPath(argFile.name),
+                  '@' + fixPath(sourceFile.name)]);
 
               javacProc.stdout.on('data', spawnlog('javac'));
               javacProc.stderr.on('data', spawnlog('javac'));
@@ -147,8 +154,8 @@
     compileStream.addLibraries = function(...sources) {
       const libraryAdder = function(file) {
           if (!file.isDirectory()) {
-            trace('Library added:', file.path);
-            libraries.push(file.path);
+            trace('Library added:', fixPath(file.path));
+            libraries.push(fixPath(file.path));
           }
         };
 
@@ -207,7 +214,7 @@
         let args = [];
         let options = ['u', 'f'];
         if (!jarPath) {
-          jarFolder = tmp.dirSync({unsafeCleanup: false}).name;
+          jarFolder = fixPath(tmp.dirSync({unsafeCleanup: false}).name);
           jarPath = path.join(jarFolder, jarName);
 
           try {
@@ -295,11 +302,11 @@
         readableObjectMode: true,
         writableObjectMode: true,
         transform(file, enc, next) {
-          let outputFolder = tmp.dirSync({unsafeCleanup: true}).name;
+          let outputFolder = fixPath(tmp.dirSync({unsafeCleanup: true}).name);
 
           trace('Expanding jar into', outputFolder);
 
-          let args = ['-xf' + verbose ? 'v' : '', file.path];
+          let args = ['-xf' + verbose ? 'v' : '', fixPath(file.path)];
 
           // And here... we... go...
           trace('Executing:', jarToolPath, args);
