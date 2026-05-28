@@ -29,7 +29,7 @@
   "dependencies": {
     "gulp-util": "^3.0.0",
     "lazypipe": "^1.0.1",
-    "tmp": "0.0.30",
+    "tmp": "0.2.6",
     "vinyl-file": "^2.0.0"
   },
   "devDependencies": {
